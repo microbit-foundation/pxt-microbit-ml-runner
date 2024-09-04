@@ -1,4 +1,6 @@
-# Experimental MakeCode extension to run ML4F models
+# MakeCode extension to run ML4F models
+
+This extension is a work in progress. It supports unreleased work on the micro:bit machine learning tool.
 
 [![MakeCode Project](https://github.com/microbit-foundation/pxt-ml-runner-poc/actions/workflows/makecode.yml/badge.svg)](https://github.com/microbit-foundation/pxt-ml-runner-poc/actions/workflows/makecode.yml)
 [![Header Generator Tests](https://github.com/microbit-foundation/pxt-ml-runner-poc/actions/workflows/header-gen.yml/badge.svg)](https://github.com/microbit-foundation/pxt-ml-runner-poc/actions/workflows/header-gen.yml)
