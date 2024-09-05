@@ -4,12 +4,18 @@
   "description": "A simple TS script to generate a header blob for the ML runner",
   "author": "Micro:bit Educational Foundation <package-help@microbit.org>",
   "license": "MIT",
+  "type": "module",
   "module": "./built/main.js",
   "typings": "./built/main.d.ts",
   "files": [
     "./built/*.js",
     "./built/*.d.ts"
   ],
+  "exports": {
+    ".": {
+      "import": "./built/main.js"
+    }
+  },
   "scripts": {
     "start": "ts-node --project tsconfig.cli.json src/cli.ts",
     "test": "jest",
