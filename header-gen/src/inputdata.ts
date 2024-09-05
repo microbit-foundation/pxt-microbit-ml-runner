@@ -3,7 +3,7 @@
  *
  * SPDX-License-Identifier: MIT
  */
-import { MlModelHeader } from './MlModelHeader';
+import { MlModelHeader } from './MlModelHeader.js';
 
 export const headerData: MlModelHeader = {
     samples_period: 25,

@@ -27,7 +27,7 @@
  *     const ml_header_action_t actions[0];
  * } ml_model_header_t;
  */
-import { MlModelHeader } from './MlModelHeader';
+import { MlModelHeader } from './MlModelHeader.js';
 
 const HEADER_MAGIC = 0x4D4F444C;
 const CONST_SIZES = {
