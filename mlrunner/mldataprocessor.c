@@ -51,7 +51,7 @@ MldpReturn_t filterMean(const float *data_in, const int in_size, float *data_out
     for (int i = 0; i < in_size; i++) {
         sum += data_in[i];
     }
-    *data_out = sum / in_size;
+    *data_out = sum / (float)in_size;
 
     return MLDP_SUCCESS;
 }
@@ -74,7 +74,7 @@ MldpReturn_t filterStdDev(const float *data_in, const int in_size, float *data_o
         f = data_in[i] - mean;
         std += f * f;
     }
-    std /= in_size;
+    std /= (float)in_size;
     *data_out = sqrtf(std);
 
     return MLDP_SUCCESS;
@@ -173,7 +173,7 @@ MldpReturn_t filterZcr(const float *data_in, const int in_size, float *data_out,
             count++;
         }
     }
-    *data_out = count / (in_size - 1);
+    *data_out = (float)count / (float)(in_size - 1);
 
     return MLDP_SUCCESS;
 }
@@ -188,7 +188,7 @@ MldpReturn_t filterRms(const float *data_in, const int in_size, float *data_out,
     for (int i = 0; i < in_size; i++) {
         rms += data_in[i] * data_in[i];
     }
-    *data_out = sqrtf(rms / in_size);
+    *data_out = sqrtf(rms / (float)in_size);
 
     return MLDP_SUCCESS;
 }
