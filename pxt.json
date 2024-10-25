@@ -1,6 +1,6 @@
 {
     "name": "machine-learning-runner",
-    "version": "0.3.9",
+    "version": "0.4.4",
     "description": "Extension to run ML4F models in micro:bit MakeCode",
     "dependencies": {
         "core": "*"
