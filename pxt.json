@@ -42,10 +42,6 @@
         "mbdal"
     ],
     "yotta": {
-        "config": {
-            "codal": {
-                "STACK_SIZE": 8192
-            }
-        }
+        "config": { }
     }
 }

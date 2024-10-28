@@ -81,7 +81,6 @@ MldpReturn_t filterStdDev(const float *data_in, const int in_size, float *data_o
 // Count the number of peaks
 // Warning! This can allocate 5x the in_size of the data in the stack
 // so ensure DEVICE_STACK_SIZE is appropriately set
-// TODO: Move to the heap, pxt automatically uses its allocator
 MldpReturn_t filterPeaks(const float *data_in, const int in_size, float *data_out, const int out_size) {
     const int lag = 5;
     const float threshold = 3.5;
@@ -91,11 +90,13 @@ MldpReturn_t filterPeaks(const float *data_in, const int in_size, float *data_ou
         return MLDP_ERROR_CONFIG;
     }
 
-    float signals[in_size];
-    float filtered_y[in_size];
+    // micro:bit allocator panics if there is not enough memory, no need to check
+    float *signals = (float *)malloc(in_size * sizeof(float));
+    float *filtered_y = (float *)malloc(in_size * sizeof(float));
+    float *avg_filter = (float *)malloc(in_size * sizeof(float));
+    float *std_filter = (float *)malloc(in_size * sizeof(float));
     float lead_in[lag];
-    float avg_filter[in_size];
-    float std_filter[in_size];
+
     memset(signals, 0, in_size * sizeof(float));
     memcpy(filtered_y, data_in, in_size * sizeof(float));
     memcpy(lead_in, data_in, lag * sizeof(float));
@@ -139,6 +140,11 @@ MldpReturn_t filterPeaks(const float *data_in, const int in_size, float *data_ou
         std_filter[i] = std_dev_lag;
     }
     *data_out = peaksCounter;
+
+    free(signals);
+    free(filtered_y);
+    free(avg_filter);
+    free(std_filter);
 
     return MLDP_SUCCESS;
 }
