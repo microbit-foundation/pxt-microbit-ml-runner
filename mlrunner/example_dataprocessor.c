@@ -67,7 +67,7 @@ MldpReturn_t exampleDataProcessor_recordData(const float* samples, const int ele
     if (elements != accDimensions) return false;
 
     for (int i = 0; i < accDimensions; i++) {
-        accData[accDataIndex++] = sample[i];
+        accData[accDataIndex++] = samples[i];
     }
     if (accDataIndex >= accDataSize) {
         accDataIndex = 0;
