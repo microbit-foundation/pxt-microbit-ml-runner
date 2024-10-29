@@ -98,7 +98,7 @@ MldpReturn_t filterPeaks(const float *data_in, const int in_size, float *data_ou
     float lead_in[lag];
 
     memset(signals, 0, in_size * sizeof(float));
-    memcpy(filtered_y, data_in, in_size * sizeof(float));
+    memcpy(filtered_y, data_in, lag * sizeof(float));
     memcpy(lead_in, data_in, lag * sizeof(float));
 
     float mean_lag, std_dev_lag;
