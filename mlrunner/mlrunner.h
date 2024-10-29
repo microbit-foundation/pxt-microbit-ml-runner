@@ -137,15 +137,6 @@ int ml_getInputLength();
 int ml_getOutputLength();
 
 /**
- * @brief Get the model labels.
- *
- * The label pointers point directly to the strings stored in flash.
- *
- * @return A pointer to a ml_labels_t object containing the labels.
- */
-ml_labels_t* ml_getLabels();
-
-/**
  * @brief Allocate memory for the model actions.
  *
  * The caller is responsible for freeing the memory.

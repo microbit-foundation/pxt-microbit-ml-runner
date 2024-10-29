@@ -5,8 +5,9 @@
  * Copyright 2024 Micro:bit Educational Foundation.
  * SPDX-License-Identifier: MIT
  *
- * TODO: Need to double buffer this so that a model can be run while the
- * next data is being collected.
+ * TODO: Could be double buffered so that an interruptible model could be
+ * run while the data is still being collected. Currently the model run
+ * is quick enough where this is not necessary.
  */
 #include <string.h>
 #include "mldataprocessor.h"

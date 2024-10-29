@@ -5,10 +5,8 @@
  * Copyright 2024 Micro:bit Educational Foundation.
  * SPDX-License-Identifier: MIT
  *
- * TODO: Need to double buffer this so that a model can be run while the
- * next data is being collected.
- * TODO: Need to make isDataReady() more robust as right now it needs to be
- * called after each recordData() call.
+ * This processor is no longer used in testextension.cpp, but it is still
+ * included as a simpler example of how to implement a data processor.
  */
 #include "mldataprocessor.h"
 
