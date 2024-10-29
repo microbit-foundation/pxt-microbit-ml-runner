@@ -90,13 +90,28 @@ MldpReturn_t filterPeaks(const float *data_in, const int in_size, float *data_ou
         return MLDP_ERROR_CONFIG;
     }
 
-    // micro:bit allocator panics if there is not enough memory, no need to check
-    float *signals = (float *)malloc(in_size * sizeof(float));
-    float *filtered_y = (float *)malloc(in_size * sizeof(float));
-    float *avg_filter = (float *)malloc(in_size * sizeof(float));
-    float *std_filter = (float *)malloc(in_size * sizeof(float));
+    static float *signals = NULL;
+    static float *filtered_y = NULL;
+    static float *avg_filter = NULL;
+    static float *std_filter = NULL;
+    static int arrays_alloc_size = 0;
     float lead_in[lag];
 
+    // Keep memory allocated between calls to avoid malloc/free overhead
+    if (arrays_alloc_size < in_size) {
+        free(signals); free(filtered_y); free(avg_filter); free(std_filter);
+        signals = (float *)malloc(in_size * sizeof(float));
+        filtered_y = (float *)malloc(in_size * sizeof(float));
+        avg_filter = (float *)malloc(in_size * sizeof(float));
+        std_filter = (float *)malloc(in_size * sizeof(float));
+        if (signals == NULL || filtered_y == NULL || avg_filter == NULL|| std_filter == NULL) {
+            free(signals); free(filtered_y); free(avg_filter); free(std_filter);
+            signals = NULL; filtered_y = NULL; avg_filter = NULL; std_filter = NULL;
+            arrays_alloc_size = 0;
+            return MLDP_ERROR_ALLOC;
+        }
+        arrays_alloc_size = in_size;
+    }
     memset(signals, 0, in_size * sizeof(float));
     memcpy(filtered_y, data_in, lag * sizeof(float));
     memcpy(lead_in, data_in, lag * sizeof(float));
@@ -113,8 +128,10 @@ MldpReturn_t filterPeaks(const float *data_in, const int in_size, float *data_ou
 
     int peaksCounter = 0;
     for (int i = lag; i < in_size; i++) {
-        if (fabsf(data_in[i] - avg_filter[i - 1]) > 0.1f &&
-            fabsf(data_in[i] - avg_filter[i - 1]) > threshold * std_filter[i - 1]
+        const float diff = fabsf(data_in[i] - avg_filter[i - 1]);
+        if (
+            diff > 0.1f &&
+            diff > threshold * std_filter[i - 1]
         ) {
             if (data_in[i] > avg_filter[i - 1]) {
                 signals[i] = +1; // positive signal
@@ -140,11 +157,6 @@ MldpReturn_t filterPeaks(const float *data_in, const int in_size, float *data_ou
         std_filter[i] = std_dev_lag;
     }
     *data_out = peaksCounter;
-
-    free(signals);
-    free(filtered_y);
-    free(avg_filter);
-    free(std_filter);
 
     return MLDP_SUCCESS;
 }
