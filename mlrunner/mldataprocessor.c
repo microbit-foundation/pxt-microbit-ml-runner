@@ -78,9 +78,24 @@ MldpReturn_t filterStdDev(const float *data_in, const int in_size, float *data_o
     return MLDP_SUCCESS;
 }
 
+// This combined function is more efficient than calling filterMean and filterStdDev separately
+static inline void calcMeanAndStdDev(const float *data_in, const int in_size, float *mean, float *std_dev) {
+    float sum = 0;
+    for (int i = 0; i < in_size; i++) {
+        sum += data_in[i];
+    }
+    const float _mean = sum / (float)in_size;
+
+    float sum_of_squares = 0;
+    for (int i = 0; i < in_size; i++) {
+        float f = data_in[i] - _mean;
+        sum_of_squares += f * f;
+    }
+    *std_dev = sqrtf(sum_of_squares / (float)in_size);
+    *mean = _mean;
+}
+
 // Count the number of peaks
-// Warning! This can allocate 5x the in_size of the data in the stack
-// so ensure DEVICE_STACK_SIZE is appropriately set
 MldpReturn_t filterPeaks(const float *data_in, const int in_size, float *data_out, const int out_size) {
     const int lag = 5;
     const float threshold = 3.5;
@@ -90,71 +105,50 @@ MldpReturn_t filterPeaks(const float *data_in, const int in_size, float *data_ou
         return MLDP_ERROR_CONFIG;
     }
 
-    static float *signals = NULL;
-    static float *filtered_y = NULL;
-    static float *avg_filter = NULL;
-    static float *std_filter = NULL;
-    static int arrays_alloc_size = 0;
-    float lead_in[lag];
-
     // Keep memory allocated between calls to avoid malloc/free overhead
-    if (arrays_alloc_size < in_size) {
-        free(signals); free(filtered_y); free(avg_filter); free(std_filter);
-        signals = (float *)malloc(in_size * sizeof(float));
+    static float *filtered_y = NULL;
+    static int alloc_size = 0;
+    if (alloc_size < in_size) {
+        free(filtered_y);
         filtered_y = (float *)malloc(in_size * sizeof(float));
-        avg_filter = (float *)malloc(in_size * sizeof(float));
-        std_filter = (float *)malloc(in_size * sizeof(float));
-        if (signals == NULL || filtered_y == NULL || avg_filter == NULL|| std_filter == NULL) {
-            free(signals); free(filtered_y); free(avg_filter); free(std_filter);
-            signals = NULL; filtered_y = NULL; avg_filter = NULL; std_filter = NULL;
-            arrays_alloc_size = 0;
+        if (filtered_y == NULL) {
+            alloc_size = 0;
             return MLDP_ERROR_ALLOC;
         }
-        arrays_alloc_size = in_size;
+        alloc_size = in_size;
     }
-    memset(signals, 0, in_size * sizeof(float));
     memcpy(filtered_y, data_in, lag * sizeof(float));
-    memcpy(lead_in, data_in, lag * sizeof(float));
 
     float mean_lag, std_dev_lag;
-    MldpReturn_t mean_result = filterMean(lead_in, lag, &mean_lag, 1);
-    MldpReturn_t std_dev_result = filterStdDev(lead_in, lag, &std_dev_lag, 1);
-    if (std_dev_result != MLDP_SUCCESS || mean_result != MLDP_SUCCESS) {
-        return MLDP_ERROR_CONFIG;
-    }
+    calcMeanAndStdDev(filtered_y, lag, &mean_lag, &std_dev_lag);
 
-    avg_filter[lag - 1] = mean_lag;
-    std_filter[lag - 1] = std_dev_lag;
-
+    int previous_signal = 0;
     int peaksCounter = 0;
     for (int i = lag; i < in_size; i++) {
-        const float diff = fabsf(data_in[i] - avg_filter[i - 1]);
+        int current_signal;
+        const float diff = fabsf(data_in[i] - mean_lag);
         if (
             diff > 0.1f &&
-            diff > threshold * std_filter[i - 1]
+            diff > threshold * std_dev_lag
         ) {
-            if (data_in[i] > avg_filter[i - 1]) {
-                signals[i] = +1; // positive signal
-                if (i - 1 > 0 && signals[i - 1] == 0) {
+            if (data_in[i] > mean_lag) {
+                current_signal = +1; // positive signal
+                if (previous_signal == 0) {
                     peaksCounter++;
                 }
             } else {
-                signals[i] = -1; // negative signal
+                current_signal = -1; // negative signal
             }
             // make influence lower
             filtered_y[i] = influence * data_in[i] + (1.0f - influence) * filtered_y[i - 1];
         } else {
-            signals[i] = 0; // no signal
+            current_signal = 0; // no signal
             filtered_y[i] = data_in[i];
         }
+        previous_signal = current_signal;
 
         // adjust the filters
-        float y_lag[lag];
-        memcpy(y_lag, &filtered_y[i - lag], lag * sizeof(float));
-        filterMean(y_lag, lag, &mean_lag, 1);
-        filterStdDev(y_lag, lag, &std_dev_lag, 1);
-        avg_filter[i] = mean_lag;
-        std_filter[i] = std_dev_lag;
+        calcMeanAndStdDev(&filtered_y[i - lag], lag, &mean_lag, &std_dev_lag);
     }
     *data_out = peaksCounter;
 
