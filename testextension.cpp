@@ -79,9 +79,9 @@ namespace testrunner {
 
         unsigned int time_start = system_timer_current_time_us();
 
-        int32_t ticks_start = ticks_cpu() & 0x7FFFFFFF;
+        uint32_t ticks_start = ticks_cpu();
         float *modelData = mlDataProcessor.getProcessedData();
-        int32_t ticks_end = ticks_cpu() & 0x7FFFFFFF;
+        uint32_t ticks_end = ticks_cpu();
         if (modelData == NULL) {
             DEBUG_PRINT("Failed to processed data for the model\n");
             uBit.panic(TEST_RUNNER_ERROR + 21);

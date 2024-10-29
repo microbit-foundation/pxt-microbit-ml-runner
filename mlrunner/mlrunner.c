@@ -255,7 +255,7 @@ int ml_calcPrediction(const ml_actions_t *actions, const float* predictions, con
     if (max_index < 0) {
         return -1;
     }
-    // If the max predictionn is 0, then none were above the threshold
+    // If the max prediction is 0, then none were above the threshold
     if (predictions_above_threshold[max_index] == 0.0f) {
         max_index = -1;
     }
