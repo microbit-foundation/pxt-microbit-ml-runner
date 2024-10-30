@@ -1,18 +1,18 @@
 input.onButtonPressed(Button.A, function () {
     basic.clearScreen()
 })
-testrunner.onMlEvent(TestRunnerLabels.None, function () {
+testrunner.onMlEvent(testrunner.event.Unknown, function () {
     basic.clearScreen()
 })
-testrunner.onMlEvent(TestRunnerLabels.Shake, function () {
+testrunner.onMlEvent(testrunner.event.Shake, function () {
     basic.showString("S")
 })
-testrunner.onMlEvent(TestRunnerLabels.Still, function () {
+testrunner.onMlEvent(testrunner.event.Still, function () {
     basic.showIcon(IconNames.Asleep)
 })
-testrunner.onMlEvent(TestRunnerLabels.Circle, function () {
+testrunner.onMlEvent(testrunner.event.Circle, function () {
     basic.showString("C")
 })
 basic.forever(function () {
-	
+    
 })

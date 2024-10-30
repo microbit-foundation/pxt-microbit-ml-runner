@@ -1,12 +1,17 @@
 #include <pxt.h>
 #include "mlrunner/mlrunner.h"
 #include "mlrunner/mldataprocessor.h"
+#if DEVICE_MLRUNNER_USE_EXAMPLE_MODEL
 #include "mlrunner/example_model1.h"
+#endif
 
-// Using defines to avoid MakeCode exposing the enum to enums.d.ts
-#define TEST_RUNNER_ID_INFERENCE 71
-#define TEST_RUNNER_ID_TIMER 72
-#define TEST_RUNNER_ERROR 800
+// This test model doesn't run the program, but instead tests the model with
+// pre-recorded data and its expected output. Prints the results to serial.
+#ifndef ML_TEST_MODEL
+#define ML_TEST_MODEL 0
+#define ML_DEBUG_PRINT 1
+#include "modeltest.h"
+#endif
 
 // Enable/disable debug print to serial, can be set in pxt.json
 #ifndef ML_DEBUG_PRINT
@@ -16,6 +21,21 @@
 #define DEBUG_PRINT(...) uBit.serial.printf(__VA_ARGS__)
 #else
 #define DEBUG_PRINT(...)
+#endif
+
+// Using defines to avoid MakeCode exposing the enum to enums.d.ts
+#define TEST_RUNNER_ID_INFERENCE 71
+#define TEST_RUNNER_ID_TIMER 72
+#define TEST_RUNNER_ERROR 800
+
+// Configure the period between ML runs, can be set in pxt.json
+#ifndef ML_INFERENCE_PERIOD_MS
+#define ML_INFERENCE_PERIOD_MS 250
+#endif
+
+// Configure the default flags for the model event listeners, can be set in pxt.json
+#ifndef ML_EVENT_LISTENER_DEFAULT_FLAGS
+#define ML_EVENT_LISTENER_DEFAULT_FLAGS MESSAGE_BUS_LISTENER_DROP_IF_BUSY
 #endif
 
 
@@ -29,10 +49,11 @@ static inline uint32_t ticks_cpu() {
     return DWT->CYCCNT;
 }
 
-static uint32_t ticks[10];
-static uint32_t ticks_index = 0;
-static bool ticks_start_average = false;
 static inline uint32_t calcTicks(uint32_t ticks_start, uint32_t ticks_end) {
+    static uint32_t ticks[10];
+    static uint32_t ticks_index = 0;
+    static bool ticks_start_average = false;
+
     ticks[ticks_index] = ticks_end - ticks_start;
     ticks_index++;
     if (ticks_index >= 9) {
@@ -54,9 +75,10 @@ static inline uint32_t calcTicks(uint32_t ticks_start, uint32_t ticks_end) {
 
 namespace testrunner {
     static bool initialised = false;
+    static int samplesPeriodMillisec = 0;
     static ml_actions_t *actions = NULL;
     static ml_predictions_t *predictions = NULL;
-    static int ml_sample_counts_per_prediction = 0;
+    static int mlSampleCountsPerInference = 0;
     static const int ML_PREDICTIONS_PER_SECOND = 4;
     static const uint16_t ML_CODAL_TIMER_VALUE = 1;
 
@@ -98,28 +120,36 @@ namespace testrunner {
 
         unsigned int time_end = system_timer_current_time_us();
 
-        DEBUG_PRINT("Prediction (%d micros + %d micros, %d ticks): ",
+        DEBUG_PRINT("Prediction (%d micros + %d micros, %d filter ticks): ",
                     time_mid - time_start, time_end - time_mid, calcTicks(ticks_start, ticks_end));
         if (predictions->index >= 0) {
-            DEBUG_PRINT("%d %s\n",
+            DEBUG_PRINT("%d %s\t\t",
                         predictions->index,
                         actions->action[predictions->index].label);
         } else {
-            DEBUG_PRINT("None\n");
+            DEBUG_PRINT("None\t\t");
         }
-        DEBUG_PRINT("\tIndividual:");
         for (size_t i = 0; i < actions->len; i++) {
-            DEBUG_PRINT(" %s [%d]",
+            DEBUG_PRINT(" %s[%d]",
                         actions->action[i].label,
                         (int)(predictions->prediction[i] * 100));
         }
-        DEBUG_PRINT("\n\n");
+        DEBUG_PRINT("\n");
 
         MicroBitEvent evt(TEST_RUNNER_ID_INFERENCE, predictions->index + 2);
     }
 
     void recordAccData(MicroBitEvent) {
         if (!initialised) return;
+
+#if ML_DEBUG_PRINT
+        static uint32_t lastSampleTime = 0;
+        uint32_t now = uBit.systemTime();
+        if ((now - lastSampleTime) != (uint32_t)samplesPeriodMillisec) {
+            DEBUG_PRINT("Sample period drift: %d ms\n", now - lastSampleTime);
+        }
+        lastSampleTime = now;
+#endif
 
         const Sample3D accSample = uBit.accelerometer.getSample();
         const float accData[3] = {
@@ -133,9 +163,9 @@ namespace testrunner {
             return;
         }
 
-        // Run model every ml_sample_counts_per_prediction samples
+        // Run model every mlSampleCountsPerInference samples
         static unsigned int samplesTaken = 0;
-        if (!(++samplesTaken % ml_sample_counts_per_prediction) && mlDataProcessor.isDataReady()) {
+        if (!(++samplesTaken % mlSampleCountsPerInference) && mlDataProcessor.isDataReady()) {
             runModel();
         }
     }
@@ -189,7 +219,7 @@ namespace testrunner {
             uBit.panic(TEST_RUNNER_ERROR + 4);
         }
 
-        const int samplesPeriodMillisec = ml_getSamplesPeriod();
+        samplesPeriodMillisec = ml_getSamplesPeriod();
         DEBUG_PRINT("\tModel samples period: %d ms\n", samplesPeriodMillisec);
         if (samplesPeriodMillisec <= 0) {
             DEBUG_PRINT("Model samples period invalid\n");
@@ -203,7 +233,7 @@ namespace testrunner {
             uBit.panic(TEST_RUNNER_ERROR + 6);
         }
 
-        const int modelOutputLen = ml_getInputLength();
+        const int modelOutputLen = ml_getOutputLength();
         DEBUG_PRINT("\tModel output length: %d\n", modelOutputLen);
         if (modelOutputLen <= 0) {
             DEBUG_PRINT("Model output length invalid\n");
@@ -217,6 +247,9 @@ namespace testrunner {
             uBit.panic(TEST_RUNNER_ERROR + 8);
         }
 
+        mlSampleCountsPerInference = ML_INFERENCE_PERIOD_MS / samplesPeriodMillisec;
+        DEBUG_PRINT("\tModel inference period: %d ms\n", ML_INFERENCE_PERIOD_MS);
+
         actions = ml_allocateActions();
         if (actions == NULL) {
             DEBUG_PRINT("Failed to allocate memory for actions\n");
@@ -229,7 +262,8 @@ namespace testrunner {
         }
         DEBUG_PRINT("\tActions (%d):\n", actions->len);
         for (size_t i = 0; i < actions->len; i++) {
-            DEBUG_PRINT("\t\t'%s' threshold = %d%%\n", actions->action[i].label, (int)(actions->action[i].threshold * 100));
+            DEBUG_PRINT("\t\tAction '%s' ", actions->action[i].label);
+            DEBUG_PRINT("threshold = %d %%\n", (int)(actions->action[i].threshold * 100));
         }
 
         predictions = ml_allocatePredictions();
@@ -237,9 +271,6 @@ namespace testrunner {
             DEBUG_PRINT("Failed to allocate memory for predictions\n");
             uBit.panic(TEST_RUNNER_ERROR + 11);
         }
-
-        // Using sampling period to calculate how samples have to run for the next model run
-        ml_sample_counts_per_prediction = (1000 / ML_PREDICTIONS_PER_SECOND) / samplesPeriodMillisec;
 
         const MlDataProcessorConfig_t mlDataConfig = {
             .samples = samplesLen,
@@ -255,8 +286,18 @@ namespace testrunner {
             uBit.panic(TEST_RUNNER_ERROR + 12);
         }
 
+#if ML_TEST_MODEL
+        DEBUG_PRINT("Special mode, testing model. \n\n");
+        testModel(actions, predictions);
+        DEBUG_PRINT("Done testing model. \n\n");
+        while (true) {
+            uBit.sleep(1000);
+        }
+#endif
+
         // Set up background timer to collect data and run model
         uBit.messageBus.listen(TEST_RUNNER_ID_TIMER, ML_CODAL_TIMER_VALUE, &recordAccData, MESSAGE_BUS_LISTENER_DROP_IF_BUSY);
+        // uBit.messageBus.listen(TEST_RUNNER_ID_TIMER, ML_CODAL_TIMER_VALUE, &recordAccData, MESSAGE_BUS_LISTENER_IMMEDIATE);
         uBit.timer.eventEvery(samplesPeriodMillisec, TEST_RUNNER_ID_TIMER, ML_CODAL_TIMER_VALUE);
 
         start_ticks_cpu();

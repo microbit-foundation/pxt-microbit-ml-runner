@@ -1,9 +1,35 @@
+//% fixedInstances
+//% blockNamespace=ml
+class MlEvent {
+    eventValue: number;
+    eventLabel: string;
+    lastDuration: number;
+    onStartHandler: () => void;
+    onStopHandler: () => void;
+    onStopDetailedHandler: (duration: number) => void;
+
+    constructor(value: number, label: string) {
+      this.eventValue = value;
+      this.eventLabel = label;
+      this.lastDuration = 0;
+    }
+}
+const enum MlRunnerIds {
+    MlRunnerInference = 71,
+    TMlRunnerTimer = 72,
+}
+
 //% color=#2b64c3 weight=100 icon="\uf108" block="ML Runner" advanced=false
 namespace testrunner {
-    const enum TestRunnerIds {
-        TestRunnerInference = 71,
-        TestRunnerTimer = 72,
+    //% blockNamespace=ml
+    export namespace event {
+        //% fixedInstance block="unknown"
+        export const Unknown = new MlEvent(1, "unknown");
     }
+    export let events = [event.Unknown];
+    export let getModelBlob: () => Buffer;
+    export function maybeUpdateEventStats(currentEvent: MlEvent) { }
+    export function simulatorSendData(): void { }
 
     /**
      * Run this code when the model detects the input label has been predicted.
@@ -17,9 +43,9 @@ namespace testrunner {
      */
     //% blockId=testrunner_on_ml_event
     //% block="on ML event %value"
-    export function onMlEvent(mlEvent: TestRunnerLabels, body: () => void): void {
+    export function onMlEvent(mlEvent: MlEvent, body: () => void): void {
         startRunning();
-        control.onEvent(TestRunnerIds.TestRunnerInference, mlEvent, body, EventFlags.DropIfBusy)
+        control.onEvent(MlRunnerIds.MlRunnerInference, mlEvent.eventValue, body, EventFlags.DropIfBusy)
     }
 
     /**
