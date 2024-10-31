@@ -119,6 +119,31 @@ source code.
 By default, the MakeCode project prints debug data via serial.
 To disable this feature, set the `ML_DEBUG_PRINT` flag to `0`.
 
+## Testing the model with known data
+
+A special mode has been included to test the filters and model output.
+This mode can be triggered by changing a define flag in the source code and
+including a couple of test files with accelerometer samples, expected filter
+and model results, and a model blob to test.
+
+The results are printed to serial and nothing else runs on the device. So, it
+is designed for one-off tests for validation and debugging.
+
+To run the tests:
+- Obtain the `autogenerate.ts` and `modeltest/testdata.h` files under test and
+  replace the versions already present in this reporistory.
+  - You can copy the files from within the `modeltest/testdatax/` folders
+  - Or create new ones using the `ml4f-output` npm script within the
+    [CreateAI](https://github.com/microbit-foundation/ml-trainer) project
+- If you have a `main.ts` file using the model under test, add it as well
+  - Otherwise you might need to manually update the `main.ts` file for the
+    actions configured in the model under test
+- Set the [`ML_TEST_MODEL` macro define](https://github.com/microbit-foundation/pxt-microbit-ml-runner/blob/a79fdaf51ebf221843a7be4c948f586643471991/testextension.cpp#L11)
+  value to `1`
+- Build the MakeCode project locally (`npx pxt`) and flash the micro:bit
+- Connect a serial terminal and review the printed data
+
+
 ## License
 
 This software is under the MIT open source license.

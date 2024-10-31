@@ -101,7 +101,7 @@ MldpReturn_t filterPeaks(const float *data_in, const int in_size, float *data_ou
     const float threshold = 3.5;
     const float influence = 0.5;
 
-    if (in_size < (5 + 2) || out_size != 1) {
+    if (in_size < (lag + 2) || out_size != 1) {
         return MLDP_ERROR_CONFIG;
     }
 
