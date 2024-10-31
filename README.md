@@ -89,6 +89,11 @@ the default behaviour of the extension code.
 
 ### Built-in ML model
 
+> [!NOTE]
+> This flag is only applicable when building this repository as a MakeCode
+> project. When used as a MakeCode extension, the files with the built-in
+> model will not be included and the build will fail.
+
 The `MLRUNNER_USE_EXAMPLE_MODEL` flag can be used to add into a project an
 example model included in this extension.
 
@@ -98,7 +103,7 @@ example model included in this extension.
   shake, circle and still.
 - 2: This will include the Keras ADL model converted with ML4F.
   This model is too large and might not fit in normal builds without excluding
-  the BLE SoftDevice, so it's usage is discouraged.
+  the BLE SoftDevice, so its usage is discouraged.
   Classes: Jumping, Running, Standing, Walking
 
 ```json
