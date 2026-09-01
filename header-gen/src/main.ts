@@ -55,10 +55,21 @@ const ACTION_HEADER_SIZES = {
  * @returns The binary blob as an ArrayBuffer.
  */
 export function generateBlob(data: MlModelHeader): ArrayBuffer {
+    // Labels are stored as UTF-8, so encode them first and use byte lengths throughout
+    const encoder = new TextEncoder();
+    const actions = data.actions.map(action => {
+        const labelBytes = encoder.encode(action.label);
+        // label_length is a uint8_t and includes the null terminator
+        if (labelBytes.length + 1 > 255) {
+            throw new Error(`Action label longer than 254 bytes when UTF-8 encoded: "${action.label}"`);
+        }
+        return { ...action, labelBytes };
+    });
+
     // Calculate size of the actions and labels within, including null terminators and padding
     const fixedActionSize = Object.values(ACTION_HEADER_SIZES).reduce((acc, size) => acc + size, 0);
-    let actionsSize = data.actions.reduce((acc, action) => {
-        const actionStructSize = fixedActionSize + action.label.length;
+    let actionsSize = actions.reduce((acc, action) => {
+        const actionStructSize = fixedActionSize + action.labelBytes.length;
         // Each action struct is padded at the end to align to 4 bytes
         const structPadding = (actionStructSize % 4 === 0) ? 0 : 4 - (actionStructSize % 4);
         return acc + actionStructSize + structPadding;
@@ -86,13 +97,13 @@ export function generateBlob(data: MlModelHeader): ArrayBuffer {
     offset = addToView(view, offset, data.actions.length, CONST_SIZES.number_of_actions);
 
     // Add action structures
-    data.actions.forEach(action => {
+    actions.forEach(action => {
         const start_offset = offset;
         view.setFloat32(offset, action.threshold, true);
         offset += ACTION_HEADER_SIZES.threshold;
-        offset = addToView(view, offset, action.label.length + 1, ACTION_HEADER_SIZES.label_length);
-        for (let i = 0; i < action.label.length; i++) {
-            offset = addToView(view, offset, action.label.charCodeAt(i), 1);
+        offset = addToView(view, offset, action.labelBytes.length + 1, ACTION_HEADER_SIZES.label_length);
+        for (const byte of action.labelBytes) {
+            offset = addToView(view, offset, byte, 1);
         }
         offset = addToView(view, offset, 0, 1); // null terminator
         // Align to 4 bytes and pad with zeros
