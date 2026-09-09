@@ -4,6 +4,11 @@
   "description": "A simple TS script to generate a header blob for the ML runner",
   "author": "Micro:bit Educational Foundation <package-help@microbit.org>",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/microbit-foundation/pxt-microbit-ml-runner.git",
+    "directory": "header-gen"
+  },
   "type": "module",
   "module": "./built/main.js",
   "typings": "./built/main.d.ts",
