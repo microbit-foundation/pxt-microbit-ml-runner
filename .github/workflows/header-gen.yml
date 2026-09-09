@@ -1,61 +1,69 @@
 name: Header Generator
 
+# Builds and tests the @microbit/ml-header-generator package in header-gen/.
+# Only releases tagged header-gen-vX.Y.Z publish it; plain vX.Y.Z tags belong
+# to the MakeCode extension (pxt bump) and share this repo, so a release with
+# one of those builds and packs but does not publish.
 on:
   release:
     types: [created]
   push:
-    branches: 
-    - "*"
+    branches:
+      - "**"
     paths:
-    - "header-gen/**"
-    - "**/header-gen.yml"
-  pull_request:
-    branches: 
-    - "*"
-    paths:
-    - "header-gen/**"
-    - "**/header-gen.yml"
+      - "header-gen/**"
+      - ".github/workflows/header-gen.yml"
+
+env:
+  # renovate: datasource=npm depName=npm
+  NPM_VERSION: "11"
 
 jobs:
-  build-and-test:
-    name: Build, test & publish TS lib
+  build:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      packages: write
-
+    defaults:
+      run:
+        working-directory: header-gen
     steps:
-    - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "24.x"
+          cache: npm
+          cache-dependency-path: header-gen/package-lock.json
+      - run: npm install -g npm@${{ env.NPM_VERSION }} --registry=https://registry.npmjs.org
+      - run: npm ci
+      - uses: microbit-foundation/npm-package-versioner-action@v3
+        with:
+          working-directory: header-gen
+      - run: npm run build
+      - run: npm test
+      - run: npm pack
+      - uses: actions/upload-artifact@v7
+        if: github.event_name == 'release' && startsWith(github.event.release.tag_name, 'header-gen-v')
+        with:
+          name: npm-tarball
+          path: header-gen/*.tgz
+          if-no-files-found: error
+          retention-days: 1
 
-    - name: Setup Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: '20'
-        registry-url: "https://registry.npmjs.org"
-        cache: npm
-        cache-dependency-path: header-gen/package-lock.json
-
-    - name: Install Dependencies
-      run: npm ci
-      working-directory: ./header-gen
-
-    - name: Update version
-      if: github.event_name != 'pull_request'
-      uses: microbit-foundation/npm-package-versioner-action@v1
-      with:
-        working-directory: ./header-gen
-
-    - name: Build
-      run: npm run build
-      working-directory: ./header-gen
-
-    - name: Run Jest Tests
-      run: npm test
-      working-directory: ./header-gen
-
-    - name: Publish
-      run: npm publish
-      if: github.event_name == 'release' && github.event.action == 'created'
-      working-directory: ./header-gen
-      env:
-        NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+  publish:
+    needs: build
+    if: github.event_name == 'release' && startsWith(github.event.release.tag_name, 'header-gen-v')
+    runs-on: ubuntu-latest
+    environment: npm-publish
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          name: npm-tarball
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "24.x"
+          registry-url: "https://registry.npmjs.org"
+      - run: npm install -g npm@${{ env.NPM_VERSION }} --registry=https://registry.npmjs.org
+      - run: npm stage publish --allow-file=all ./*.tgz
